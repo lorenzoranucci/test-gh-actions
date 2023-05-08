@@ -1,0 +1,43 @@
+name: cdk-deploy
+
+on:
+  push:
+    branches:
+      - master
+  release:
+    types:
+      - created
+
+jobs:
+  build-artifact-via-codebuild:
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ startsWith(github.ref, 'refs/tags/') && 'live' || 'staging'}}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets[${{ env.ENVIRONMENT }}_AWS_ACCESS_KEY_ID] }}
+          aws-secret-access-key: ${{ secrets[${{ env.ENVIRONMENT }}_AWS_SECRET_ACCESS_KEY] }}
+          aws-region: ${{ secrets[${{ env.ENVIRONMENT }}_AWS_REGION] }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install Typescript
+        run: npm -g install typescript
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Deploy SNS Stack
+        run: |
+          echo "cdk deploy --app "npx ts-node bin/sns.ts" Stack-${{ env.ENVIRONMENT }} --require-approval never"
