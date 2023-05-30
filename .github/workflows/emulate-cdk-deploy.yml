@@ -44,7 +44,7 @@ jobs:
             previous_release=$(echo "$response" | jq -r '.[1].commit.sha')
             echo "\nprevious_release:"
             echo $previous_release
-            sha_commitish=$(git rev-parse ${{ github.event.release.target_commitish }})
+            sha_commitish=$(git rev-parse origin/${{ github.event.release.target_commitish }})
             echo "\nsha_commitish:"
             echo $sha_commitish
             modified_files=$(git diff --name-only $previous_release $sha_commitish }})
