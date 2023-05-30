@@ -6,7 +6,6 @@ on:
       - main
   release:
     types:
-      - created
       - published
   workflow_dispatch:
     inputs:
@@ -29,14 +28,28 @@ jobs:
         run: |
           echo "Error trying to deploy a non-master branch on live."
           exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Detect modified files
+        run: |
+          modified_files=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }})
+          if [[ ${{ startsWith(github.ref, 'refs/heads/') }} == true ]]; then
+            response=$(curl -s -H "Authorization: Bearer ${{ secrets.CI_GH_PAT }}" "https://api.github.com/repos/lorenzoranucci/test-gh-actions/tags")
+            previous_release=$(echo "$response" | jq -r '.[1].commit.sha')
+            echo $previous_release
+            modified_files=$(git diff --name-only $previous_release ${{ github.event.release.target_commitish }})
+          fi
+          echo "$modified_files"
+
       - name: Configure AWS credentials
         run: |
           echo ${{ secrets[format('{0}_AWS_ACCESS_KEY_ID', env.ENVIRONMENT)] }}
           echo ${{ secrets[format('{0}_AWS_SECRET_ACCESS_KEY', env.ENVIRONMENT)] }}
           echo ${{ secrets[format('{0}_AWS_REGION', env.ENVIRONMENT)] }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v2
 
       - name: Install Node
         uses: actions/setup-node@v2
@@ -55,3 +68,5 @@ jobs:
       - name: Deploy SNS Stack
         run: |
           echo "cdk deploy --app "npx ts-node bin/sns.ts" Stack-${{ env.ENVIRONMENT }} --require-approval never"
+
+
